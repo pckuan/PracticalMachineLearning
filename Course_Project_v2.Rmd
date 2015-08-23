@@ -1,0 +1,63 @@
+---
+title: "Practical Machine Learning"
+output: html_document
+---
+
+##Synopsis
+
+I explored the data which records numbers about personal activities and tried to predict the ways they lift the barbells. By using the random forest method and 3-fold cross-validation, the overall accuracy of this model is about 96 percents, i.e., 4 percents error rates.
+
+##Data Processing
+
+I first loaded both training data and testing data. According to the testing data, I removed the columns which are not very useful from the data.
+```{r,message=FALSE}
+library(dplyr)
+Training<-read.csv("pml-training.csv",header=TRUE)
+Testing<-read.csv("pml-testing.csv",header=TRUE)
+SmallTraining<-select(Training, 1:11,37:49,60:68,84:86,102,113:124,140,151:160)
+SmallTesting<-select(Testing, 1:11,37:49,60:68,84:86,102,113:124,140,151:160)
+SmallerTraining<-select(SmallTraining,8:60)
+SmallerTesting<-select(SmallTesting,8:60)
+SSmallerTraining<-select(SmallerTraining,1:52)
+SSmallerTesting<-select(SmallerTesting,1:52)
+```
+
+##Model Fitting
+
+I chose about one-quarter of the data as test data, others are used for training and validation.
+
+```{r}
+library(caret)
+trainI = sample(1:dim(SSmallerTraining)[1],size=dim(SSmallerTraining)[1]/4*3,replace=F)
+trainSA = SSmallerTraining[trainI,]
+trainSA0 = SmallerTraining[trainI,]
+TtrainSA = SSmallerTraining[-trainI,]
+TtrainSA0 = SmallerTraining[-trainI,]
+```
+
+For further improve the efficiency, I prepossessed the data using the principal component analysis, which reduced the number of variables more than half.
+
+```{r,message=FALSE}
+pre<-preProcess(trainSA,method="pca",thresh=0.80)
+train<-predict(pre,trainSA)
+test<-predict(pre,TtrainSA)
+```
+
+The data is then fitted by the random forest method. For cross-validation, I used the 3-fold method and repeated the process three times.
+
+```{r,message=FALSE,warning=FALSE}
+fitControl <- trainControl(method = "repeatedcv",number = 3,repeats = 3)
+modelFit<-train(trainSA0$classe ~.,method="rf",trControl = fitControl,data=train)
+```
+
+##Result
+
+```{r}
+GuessF<-predict(modelFit,test)
+confusionMatrix(TtrainSA0$classe,predict(modelFit,test))
+```
+
+By using random forest and 3-fold cross-validation, accuracy of this model can achieve about 96 percents. 
+
+
+
